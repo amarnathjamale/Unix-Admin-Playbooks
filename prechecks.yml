@@ -1,0 +1,80 @@
+---
+- name: Backup System Configuration
+
+  tasks:
+  - name: Create Directories for Backups
+    file:
+      path: /tmp/config_backup/
+      state: directory
+      mode: '0700'
+ 
+  - name: Backup Basic Info
+    shell: uptime;uname -a;date; cat /etc/*-release  >> /tmp/config_backup/basic-info.txt
+ 
+  - name: Backup Mount Info
+    shell: mount | column -t >> /tmp/config_backup/mount-info.txt
+ 
+  - name: Backup CPU Info
+    shell: lscpu >> /tmp/config_backup/cpu-info.txt
+ 
+  - name: Backup Hardware Info
+    shell: lshw >> /tmp/config_backup/hardware-info.txt
+
+  - name: Backup Network Interface Info
+    shell: ip a >> /tmp/config_backup/interface-config.txt
+    
+  - name: Backup Routing Table
+    shell: ip route >> /tmp/config_backup/route-config.txt
+    
+  - name: RPM details
+    shell: rpm -qa >> /tmp/config_backup/rpm-installed.txt
+ 
+  - name: Backup Filesystem Sizes
+    shell: df -hP >> /tmp/config_backup/df-output.txt
+ 
+  - name: Backup Physical Volume Info
+    shell: pvdisplay >> /tmp/config_backup/physical-volume-config.txt
+ 
+  - name: Backup Volume Group Info
+    shell: vgdisplay >> /tmp/config_backup/volume-group-config.txt
+ 
+  - name: Backup Logical Volume Info
+    shell: lvdisplay >> /tmp/config_backup/logical-volume-group-config.txt
+ 
+  - name: Backup /root/anaconda-ks.cfg file
+    shell: cp /root/anaconda-ks.cfg /tmp/config_backup/
+ 
+  - name: Backup lsblk --fs Info
+    shell: lsblk --fs >> /tmp/config_backup/lsblk-config.txt
+  
+  - name: Backup fstab Info
+    shell: cat /etc/fstab >> /tmp/config_backup/fstab-info.txt
+  
+  - name: Backup Resolv.conf Info
+    shell: cat /etc/resolv.conf >> /tmp/config_backup/resolv.conf-info.txt
+  
+  - name: Backup Crontab Info
+    shell: crontab -l >> /tmp/config_backup/crontab-info.txt
+  
+  - name: Backup network-scripts Info
+    shell: cp -r /etc/sysconfig/network-scripts /tmp/config_backup
+  
+  - name: Backup SysV services Info
+    shell: chkconfig --list >> /tmp/config_backup/chkconfig-info.txt
+  
+  - name: Backup services Info
+    shell: systemctl list-unit-files --type service >> /tmp/config_backup/services-info.txt
+ 
+ 
+  - name: Backup TAR Directory
+    archive:
+      path: /tmp/config_backup
+      dest: /root/{{ ansible_hostname }}_config_backup.tgz
+ 
+  - name: Copy Configs to Centralized Location
+    fetch:
+      src: /root/{{ ansible_hostname }}_config_backup.tgz
+      dest: /var/tmp/prechecks/{{ ansible_hostname }}/
+      flat: yes
+ 
+...
