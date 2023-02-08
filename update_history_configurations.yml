@@ -1,0 +1,163 @@
+---
+- name: Update bash history
+  hosts: all
+  become: yes
+  tasks:
+    - name: Set bash history variables
+      lineinfile:
+        dest: /etc/bash.bashrc
+        line: 'export HISTTIMEFORMAT="%d/%m/%y %T "'
+        insertafter: EOF
+        
+    - name: Set who executed the command
+      lineinfile:
+        dest: /etc/bash.bashrc
+        line: 'export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a"'
+        insertafter: EOF
+
+
+---
+- name: Update bash history with date and time of command execution
+  become: yes
+  become_user: root
+  hosts: all
+  tasks:
+  - name: Add the following line to the .bashrc file
+    lineinfile:
+      dest: /root/.bashrc
+      line: 'export HISTTIMEFORMAT="%d/%m/%y %T `whoami` "'
+      state: present
+    tags:
+      - update_bash_history
+
+---
+- name: Update bash history to include date and time
+  hosts: all
+  become: yes
+  tasks:
+    - name: Add the following line to the .bashrc file
+      lineinfile:
+        dest: ~/.bashrc
+        line: 'export HISTTIMEFORMAT="%F %T $(whoami) "'
+        state: present
+    - name: Reload bashrc to apply changes
+      shell: source ~/.bashrc
+      args:
+        executable: /bin/bash
+
+---
+- name: Update bash history to include date and time and username
+  hosts: all
+  become: yes
+  tasks:
+    - name: Add the following line to the .bashrc file
+      lineinfile:
+        dest: ~/.bashrc
+        line: 'export HISTTIMEFORMAT="%F %T [$(logname)] "'
+        state: present
+    - name: Reload bashrc to apply changes
+      shell: source ~/.bashrc
+      args:
+        executable: /bin/bash
+        
+ ---
+ - name: Update bash history to include date and time and original login user
+  hosts: all
+  become: yes
+  tasks:
+    - name: Add the following line to the .bashrc file
+      lineinfile:
+        dest: ~/.bashrc
+        line: 'export PROMPT_COMMAND="{ echo \$(date +\%F\ \%T\ [\$(logname)]) >> ~/.bash_history; }$PROMPT_COMMAND"'
+        state: present
+    - name: Reload bashrc to apply changes
+      shell: source ~/.bashrc
+      args:
+        executable: /bin/bash
+
+---
+- name: Ignore history logs for specific user
+  hosts: all
+  become: yes
+  vars:
+    ignore_user: "ignoreuser"
+  tasks:
+    - name: Add the following line to the .bashrc file
+      lineinfile:
+        dest: ~/.bashrc
+        line: 'if [[ "$(logname)" != "{{ ignore_user }}" ]]; then export PROMPT_COMMAND="{ echo \$(date +\%F\ \%T\ [\$(logname)]) >> ~/.bash_history; }$PROMPT_COMMAND"; fi'
+        state: present
+    - name: Reload bashrc to apply changes
+      shell: source ~/.bashrc
+      args:
+        executable: /bin/bash
+
+---
+- name: Enforce updated bash history for all users except specific user
+  hosts: all
+  become: yes
+  vars:
+    ignore_user: ignored_user
+  tasks:
+    - name: Add the following line to the /etc/bash.bashrc file
+      lineinfile:
+        dest: /etc/bash.bashrc
+        line: 'if [ "$(logname)" != "{{ ignore_user }}" ]; then export HISTTIMEFORMAT="%F %T [$(logname)]: "; export PROMPT_COMMAND="{ history -a; }$PROMPT_COMMAND"; fi'
+        state: present
+    - name: Reload the current shell
+      shell: source ~/.bashrc
+      register: source_result
+      changed_when: false
+      ignore_errors: true
+
+---
+- name: Enforce updated bash history for all users except specific user
+  hosts: all
+  become: yes
+  vars:
+    ignore_user: ignored_user
+    history_size_kb: 2048
+  tasks:
+    - name: Add the following line to the /etc/bash.bashrc file
+      lineinfile:
+        dest: /etc/bash.bashrc
+        line: 'if [ "$(logname)" != "{{ ignore_user }}" ]; then export HISTTIMEFORMAT="%F %T [$(logname)]: "; export HISTSIZE=$((1024 * {{ history_size_kb }})); export PROMPT_COMMAND="{ history -a; }$PROMPT_COMMAND"; fi'
+        state: present
+    - name: Reload the current shell
+      shell: source ~/.bashrc
+      register: source_result
+      changed_when: false
+      ignore_errors: true
+
+---
+- name: Update bash history with date, time, and exclude common commands
+  hosts: all
+  become: yes
+  tasks:
+    - name: Set HISTTIMEFORMAT
+      environment:
+        HISTTIMEFORMAT: '%F %T '
+      tags: timeformat
+
+    - name: Set HISTSIZE
+      environment:
+        HISTSIZE: 10000
+      tags: size
+
+    - name: Set HISTFILESIZE
+      environment:
+        HISTFILESIZE: 10000
+      tags: filesize
+
+    - name: Set HISTIGNORE
+      environment:
+        HISTIGNORE: 'ls:pwd:ll:la'
+      tags: ignore
+
+---
+- name: Add history configuration to /etc/bashrc
+  lineinfile:
+    path: /etc/bashrc
+    line: 'if [ "$(logname)" != "specific_user" ]; then export HISTTIMEFORMAT='%F %T '; export HISTSIZE=1048576; export HISTIGNORE='sudo su*:history*:ls'; else unset HISTFILE; fi'
+    insertafter: '^# User specific aliases and functions'
+  become: yes
